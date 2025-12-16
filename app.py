@@ -179,3 +179,17 @@ if uploaded_files and st.button("Create Professional Bundle"):
 
     except Exception as e:
         st.error(f"❌ Error: {str(e)}")
+        
+
+# --- SEO FOOTER ---
+st.markdown("---")
+st.markdown("""
+### Why use Pro Binder?
+* **100% Free & Private:** Runs entirely in your browser. Your files are never saved to a server.
+* **Auto-Generated Table of Contents:** The only free tool that creates a clickable index for your bundles.
+* **Professional Page Numbering:** Automatically stamps 'Page X of Y' on every footer.
+* **No Signup Required:** Just upload, rename, and download.
+    
+**Keywords:** free pdf merger, combine pdfs with page numbers, add table of contents to pdf, merge pdf private, python pdf tool.
+""")
+
