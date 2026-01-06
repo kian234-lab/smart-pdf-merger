@@ -3,6 +3,9 @@ from pypdf import PdfWriter, PdfReader
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 import io
+from PIL import Image
+import img2pdf
+
 
 # --- 1. CONFIGURATION ---
 st.set_page_config(
@@ -34,7 +37,36 @@ st.markdown("""
 
 # --- 2. HELPER FUNCTIONS ---
 
-def create_toc(file_names, page_counts):
+def create_toc(file_names, p
+
+def image_to_pdf_bytes(image_file_like_object):
+    """Converts an image file-like object into a PDF byte stream."""
+    try:
+        # Open the image using Pillow
+        img = Image.open(image_file_like_object)
+
+        # Convert to RGB if not already, as img2pdf prefers RGB or greyscale
+        if img.mode == 'RGBA':
+            img = img.convert('RGB')
+        elif img.mode == 'P': # Palette mode, convert to RGB
+            img = img.convert('RGB')
+
+        # Save the image to a BytesIO object in PNG format for img2pdf
+        # img2pdf can directly take a file path or file-like object
+        img_byte_arr = io.BytesIO()
+        img.save(img_byte_arr, format=img.format if img.format else 'PNG') # Use original format or default to PNG
+        img_byte_arr.seek(0)
+
+        # Convert the image bytes to PDF bytes using img2pdf
+        pdf_bytes = img2pdf.convert(img_byte_arr.getvalue())
+
+        # Wrap the PDF bytes in an io.BytesIO object
+        return io.BytesIO(pdf_bytes)
+
+    except Exception as e:
+        raise ValueError(f"Error converting image to PDF: {e}")
+
+age_counts):
     """Generates the Table of Contents Page"""
     packet = io.BytesIO()
     can = canvas.Canvas(packet, pagesize=letter)
@@ -103,7 +135,7 @@ st.caption("Merge PDFs. Auto-generate Index. Auto-number Pages.")
 
 uploaded_files = st.file_uploader(
     "Step 1: Upload PDFs (Drag to reorder list)",
-    type="pdf",
+    type=["pdf", "png", "jpg", "jpeg"],
     accept_multiple_files=True
 )
 
@@ -127,13 +159,46 @@ if uploaded_files and st.button("Create Professional Bundle"):
         page_counts = []
         total_pages = 0
 
+                # List to store processed file readers (PDF or converted image PDFs)
+        processed_files = []
+
         for f in uploaded_files:
-            reader = PdfReader(f)
-            readers.append(reader)
-            file_names.append(f.name)
-            count = len(reader.pages)
-            page_counts.append(count)
-            total_pages += count
+            file_extension = f.name.lower().split('.')[-1]
+            file_type = ''
+
+            if file_extension in ['png', 'jpg', 'jpeg']:
+                file_type = 'image'
+                try:
+                    # Convert image to PDF bytes
+                    pdf_bytes_from_image = image_to_pdf_bytes(f)
+                    reader = PdfReader(pdf_bytes_from_image)
+                    count = len(reader.pages)
+                    # Store original file name and processed reader
+                    processed_files.append({'name': f.name, 'reader': reader, 'count': count})
+                except Exception as e:
+                    st.error(f"❌ Error converting image {f.name} to PDF: {str(e)}")
+                    continue # Skip this file
+            elif file_extension == 'pdf':
+                file_type = 'pdf'
+                try:
+                    reader = PdfReader(f)
+                    count = len(reader.pages)
+                    # Store original file name and processed reader
+                    processed_files.append({'name': f.name, 'reader': reader, 'count': count})
+                except Exception as e:
+                    st.error(f"❌ Error reading PDF {f.name}: {str(e)}")
+                    continue # Skip this file
+            else:
+                st.warning(f"Skipping unsupported file type: {f.name}")
+                continue
+
+        # Reset analysis variables using the processed files
+        readers = [pf['reader'] for pf in processed_files]
+        file_names = [pf['name'] for pf in processed_files]
+        page_counts = [pf['count'] for pf in processed_files]
+        total_pages = sum(page_counts)
+
+
 
         if use_toc:
             total_pages += 1 # Add 1 for the TOC itself

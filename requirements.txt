@@ -1,3 +1,6 @@
 streamlit
 pypdf
 reportlab
+
+Pillow==11.3.0
+img2pdf==0.6.3
